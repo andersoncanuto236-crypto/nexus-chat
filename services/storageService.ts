@@ -1,4 +1,5 @@
-import { AuditLog, Channel, Contact, User, BotConfig } from '../types';
+
+import { AuditLog, Channel, Contact, User, BotConfig, Server } from '../types';
 
 const STORAGE_KEYS = {
   CURRENT_USER: 'nexus_current_user',
@@ -7,7 +8,8 @@ const STORAGE_KEYS = {
   CONTACTS: 'nexus_contacts',
   AUDIT: 'nexus_audit_logs',
   API_KEY: 'nexus_api_key',
-  BOT_CONFIG: 'nexus_bot_config' // Nova chave
+  BOT_CONFIG: 'nexus_bot_config',
+  SERVERS_DB: 'nexus_servers_db' // Nova chave para lista de servidores
 };
 
 const dateReviver = (key: string, value: any) => {
@@ -110,5 +112,34 @@ export const StorageService = {
   },
   getAuditLogs: (): AuditLog[] => {
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.AUDIT) || '[]', dateReviver);
+  },
+
+  // --- Admin / Server Management (Dynamic) ---
+  
+  getServers: (): Server[] => {
+      const data = localStorage.getItem(STORAGE_KEYS.SERVERS_DB);
+      // Se não existir, retorna array vazio (removido os exemplos fixos)
+      // Se quiser que o próprio servidor 'Admin' apareça na lista inicial, podemos adicioná-lo no App.tsx
+      return data ? JSON.parse(data, dateReviver) : [];
+  },
+
+  saveServer: (server: Server) => {
+      const servers = StorageService.getServers();
+      const exists = servers.find(s => s.id === server.id);
+      let updatedServers;
+      if (exists) {
+          updatedServers = servers.map(s => s.id === server.id ? server : s);
+      } else {
+          updatedServers = [...servers, server];
+      }
+      localStorage.setItem(STORAGE_KEYS.SERVERS_DB, JSON.stringify(updatedServers));
+      return updatedServers;
+  },
+
+  removeServer: (serverId: string) => {
+      const servers = StorageService.getServers();
+      const updated = servers.filter(s => s.id !== serverId);
+      localStorage.setItem(STORAGE_KEYS.SERVERS_DB, JSON.stringify(updated));
+      return updated;
   }
 };

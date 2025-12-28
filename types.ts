@@ -13,20 +13,35 @@ export interface ThemeSettings {
   primaryColor: string;
   sidebarColor: string;
   logoUrl?: string;
-  appName?: string; // Novo: Nome do App customizável
+  appName?: string; // Nome do App customizável
+  companyName?: string; // Nome da Empresa (Servidor)
 }
 
 export interface User {
   id: string;
   name: string;
-  email?: string; // Novo: Email para login
-  password?: string; // Novo: Senha (simulada)
+  email?: string;
+  password?: string;
   avatar: string;
   status: 'online' | 'offline' | 'busy';
   statusMessage?: string;
   plan: PlanType;
   theme?: ThemeSettings;
-  hasSeenTutorial?: boolean; // Novo: Flag para tutorial
+  hasSeenTutorial?: boolean;
+  isAdmin?: boolean; // Flag para Super Admin
+}
+
+export interface Server {
+    id: string;
+    name: string;
+    type: 'cloud' | 'local'; // Novo: Tipo de infraestrutura
+    connectionUrl?: string; // IP ou URL
+    ownerEmail: string;
+    userCount: number;
+    paymentStatus: 'paid' | 'overdue' | 'trial';
+    lastActive: Date;
+    avatar: string;
+    apiKey?: string;
 }
 
 export interface Message {
@@ -46,6 +61,7 @@ export interface Channel {
   messages: Message[];
   description?: string;
   notificationsEnabled: boolean;
+  members?: string[]; // IDs dos membros com acesso
 }
 
 export enum DealStage {

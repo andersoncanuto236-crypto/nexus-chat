@@ -1,5 +1,6 @@
+
 import { GoogleGenAI } from "@google/genai";
-import { Message, Contact, BotConfig } from "../types";
+import { Message, Contact, BotConfig, Server } from "../types";
 import { StorageService } from "./storageService";
 
 // Helper to get client with dynamic key
@@ -163,3 +164,38 @@ export const runBotAudit = async (botConfig: BotConfig, contacts: Contact[], cha
     return "Erro ao executar o Bot. Verifique a API Key.";
   }
 };
+
+// --- SUPER ADMIN REPORT ---
+export const generateAdminReport = async (servers: Server[]): Promise<string> => {
+    try {
+        const ai = getClient();
+        const serverData = servers.map(s => 
+            `- Empresa: ${s.name} (Usuários: ${s.userCount}). Status Pagamento: ${s.paymentStatus.toUpperCase()}. Ativo em: ${new Date(s.lastActive).toLocaleDateString()}`
+        ).join('\n');
+
+        const prompt = `
+            ATENÇÃO: Você é o Bot Auditor do Sistema NEXUS (Super Admin).
+            
+            Analise a lista de servidores abaixo e gere um relatório financeiro e de risco para o Administrador (Anderson).
+            
+            DADOS DOS SERVIDORES:
+            ${serverData}
+
+            FORMATO DO RELATÓRIO:
+            1. **Resumo Geral**: Quantos servidores pagantes vs atrasados.
+            2. **Alerta de Inadimplência**: Liste explicitamente as empresas com pagamento 'OVERDUE' e sugira ação de cobrança.
+            3. **Saúde do Sistema**: Baseado na atividade recente, o sistema está saudável?
+            
+            Seja direto, formal e use emojis para status (🔴 Atrasado, 🟢 Pago).
+        `;
+
+        const response = await ai.models.generateContent({
+            model: MODEL_SMART,
+            contents: prompt,
+        });
+        return response.text || "Erro ao gerar relatório administrativo.";
+
+    } catch (error) {
+        return "Erro na API do Admin Bot.";
+    }
+}

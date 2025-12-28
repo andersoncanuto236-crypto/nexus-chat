@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
-import { BotConfig, Contact, Channel } from '../types';
-import { Bot, Save, Play, Terminal, Sliders, Activity } from 'lucide-react';
-import { runBotAudit } from '../services/geminiService';
+import { BotConfig, Contact, Channel, User } from '../types';
+import { Bot, Save, Play, Terminal, Sliders, Activity, Globe } from 'lucide-react';
+import { runBotAudit, generateAdminReport } from '../services/geminiService';
 import { StorageService } from '../services/storageService';
 
 interface BotStudioViewProps {
@@ -19,12 +20,13 @@ export const BotStudioView: React.FC<BotStudioViewProps> = ({ contacts, channels
   
   const [auditResult, setAuditResult] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     const savedConfig = StorageService.getBotConfig();
-    if (savedConfig) {
-        setConfig(savedConfig);
-    }
+    const currentUser = StorageService.getCurrentUser();
+    if (savedConfig) setConfig(savedConfig);
+    if (currentUser) setUser(currentUser);
   }, []);
 
   const handleSaveConfig = () => {
@@ -38,6 +40,15 @@ export const BotStudioView: React.FC<BotStudioViewProps> = ({ contacts, channels
     const result = await runBotAudit(config, contacts, channels);
     setAuditResult(result);
     setIsRunning(false);
+  };
+
+  const handleRunAdminReport = async () => {
+      setIsRunning(true);
+      setAuditResult(null);
+      const servers = StorageService.getServers();
+      const result = await generateAdminReport(servers);
+      setAuditResult(result);
+      setIsRunning(false);
   };
 
   return (
@@ -131,14 +142,27 @@ export const BotStudioView: React.FC<BotStudioViewProps> = ({ contacts, channels
                     <h3 className="font-bold text-lg">Executar Análise Geral</h3>
                     <p className="text-slate-400 text-sm">O Bot irá ler todos os dados do CRM e canais para gerar um relatório.</p>
                 </div>
-                <button 
-                    onClick={handleRunBot}
-                    disabled={isRunning}
-                    className={`px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition-all ${isRunning ? 'bg-slate-700 cursor-wait' : 'bg-purple-600 hover:bg-purple-500 hover:shadow-purple-500/25 shadow-lg'}`}
-                >
-                    {isRunning ? <Activity className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5" />}
-                    {isRunning ? 'Processando...' : 'Rodar Análise'}
-                </button>
+                <div className="flex gap-2">
+                    {user?.isAdmin && (
+                        <button 
+                            onClick={handleRunAdminReport}
+                            disabled={isRunning}
+                            className={`px-4 py-3 rounded-lg font-bold flex items-center gap-2 transition-all ${isRunning ? 'bg-slate-700' : 'bg-red-600 hover:bg-red-500 hover:shadow-red-500/25 shadow-lg'}`}
+                            title="Ver status de pagamento dos clientes"
+                        >
+                             {isRunning ? <Activity className="w-5 h-5 animate-spin" /> : <Globe className="w-5 h-5" />}
+                             Relatório Global
+                        </button>
+                    )}
+                    <button 
+                        onClick={handleRunBot}
+                        disabled={isRunning}
+                        className={`px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition-all ${isRunning ? 'bg-slate-700 cursor-wait' : 'bg-purple-600 hover:bg-purple-500 hover:shadow-purple-500/25 shadow-lg'}`}
+                    >
+                        {isRunning ? <Activity className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5" />}
+                        {isRunning ? 'Processando...' : 'Rodar Análise Local'}
+                    </button>
+                </div>
             </div>
 
             <div className="flex-1 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
