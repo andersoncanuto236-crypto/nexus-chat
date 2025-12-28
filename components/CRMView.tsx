@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Contact, DealStage } from '../types';
-import { DollarSign, Phone, MoreHorizontal, Sparkles, LayoutGrid, Ticket, User as UserIcon, X, Plus, MessageCircle, Calendar, Filter, Clock } from 'lucide-react';
+import { DollarSign, Phone, MoreHorizontal, Sparkles, LayoutGrid, Ticket, User as UserIcon, X, Plus, MessageCircle, Calendar, Filter, Clock, ChevronDown } from 'lucide-react';
 import { generateEmailDraft, analyzeDealHealth, summarizeLead } from '../services/geminiService';
 
 interface CRMViewProps {
@@ -174,13 +174,24 @@ export const CRMView: React.FC<CRMViewProps> = ({ contacts, onUpdateContact, onA
                       <div key={contact.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-200 transition-all group relative">
                         <div className="flex justify-between items-start mb-2">
                             <h4 className="font-bold text-slate-800 text-base">{contact.company}</h4>
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => handleAiAction(contact, 'summary')} className="p-1 hover:bg-purple-50 rounded text-slate-400 hover:text-purple-600" title="Resumo IA">
-                                    <Sparkles className="w-4 h-4" />
-                                </button>
+                            
+                            {/* Move Stage Dropdown */}
+                            <div className="relative group/menu">
                                 <button className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600">
                                     <MoreHorizontal className="w-4 h-4" />
                                 </button>
+                                <div className="absolute right-0 top-full mt-1 w-32 bg-white rounded-lg shadow-xl border border-slate-100 hidden group-hover/menu:block z-20">
+                                    <div className="p-1 text-xs text-slate-500 font-semibold px-2 py-1 bg-slate-50">Mover para:</div>
+                                    {stages.filter(s => s !== contact.stage).map(s => (
+                                        <button 
+                                            key={s}
+                                            onClick={() => onUpdateContact({...contact, stage: s, lastActivity: new Date()})}
+                                            className="block w-full text-left px-2 py-1.5 text-xs text-slate-700 hover:bg-blue-50 hover:text-blue-600 rounded-md"
+                                        >
+                                            {s}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                         <p className="text-sm text-slate-500 mb-3 flex items-center gap-1">

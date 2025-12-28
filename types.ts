@@ -1,3 +1,4 @@
+
 export enum AppView {
   DASHBOARD = 'DASHBOARD',
   CHAT = 'CHAT',
@@ -25,6 +26,7 @@ export interface User {
   statusMessage?: string;
   plan: PlanType;
   theme?: ThemeSettings;
+  hasSeenTutorial?: boolean; // Novo: Flag para tutorial
 }
 
 export interface Message {

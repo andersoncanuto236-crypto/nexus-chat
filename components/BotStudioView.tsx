@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BotConfig, Contact, Channel } from '../types';
 import { Bot, Save, Play, Terminal, Sliders, Activity } from 'lucide-react';
 import { runBotAudit } from '../services/geminiService';
+import { StorageService } from '../services/storageService';
 
 interface BotStudioViewProps {
   contacts: Contact[];
@@ -18,6 +19,18 @@ export const BotStudioView: React.FC<BotStudioViewProps> = ({ contacts, channels
   
   const [auditResult, setAuditResult] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+
+  useEffect(() => {
+    const savedConfig = StorageService.getBotConfig();
+    if (savedConfig) {
+        setConfig(savedConfig);
+    }
+  }, []);
+
+  const handleSaveConfig = () => {
+      StorageService.saveBotConfig(config);
+      alert('Configuração do Bot salva com sucesso!');
+  };
 
   const handleRunBot = async () => {
     setIsRunning(true);
@@ -102,7 +115,10 @@ export const BotStudioView: React.FC<BotStudioViewProps> = ({ contacts, channels
                     </div>
                 </div>
 
-                <button className="w-full flex items-center justify-center gap-2 bg-slate-800 text-white py-2 rounded-lg hover:bg-slate-900 transition-colors">
+                <button 
+                    onClick={handleSaveConfig}
+                    className="w-full flex items-center justify-center gap-2 bg-slate-800 text-white py-2 rounded-lg hover:bg-slate-900 transition-colors"
+                >
                     <Save className="w-4 h-4" /> Salvar Configuração
                 </button>
             </div>

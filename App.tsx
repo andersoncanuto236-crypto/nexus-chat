@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AppView, Channel, Contact, Message, User } from './types';
+import { AppView, Channel, Contact, DealStage, Message, User } from './types';
 import { StorageService } from './services/storageService';
 import { Sidebar } from './components/Sidebar';
 import { ChatView } from './components/ChatView';
@@ -8,12 +8,14 @@ import { DashboardView } from './components/DashboardView';
 import { SettingsView } from './components/SettingsView';
 import { BotStudioView } from './components/BotStudioView';
 import { AuthView } from './components/AuthView';
+import { OnboardingModal } from './components/OnboardingModal';
 import { X, LogOut } from 'lucide-react';
 
 const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false); // New state for goodbye screen
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false); // Tutorial State
   const [currentView, setCurrentView] = useState<AppView>(AppView.DASHBOARD);
   
   // State loaded from Storage
@@ -38,6 +40,10 @@ const App: React.FC = () => {
         setUser(currentUser);
         setIsAuthenticated(true);
         loadAppData();
+        // Check for tutorial
+        if (currentUser.hasSeenTutorial === false || currentUser.hasSeenTutorial === undefined) {
+            setShowOnboarding(true);
+        }
     }
     setLoading(false);
   }, []);
@@ -74,6 +80,19 @@ const App: React.FC = () => {
       setUser(loggedInUser);
       setIsAuthenticated(true);
       loadAppData();
+      // Show tutorial for new users
+      if (loggedInUser.hasSeenTutorial === false || loggedInUser.hasSeenTutorial === undefined) {
+          setShowOnboarding(true);
+      }
+  };
+
+  const handleFinishOnboarding = () => {
+      setShowOnboarding(false);
+      if (user) {
+          const updatedUser = { ...user, hasSeenTutorial: true };
+          setUser(updatedUser);
+          StorageService.updateUser(updatedUser);
+      }
   };
 
   const handleLogout = () => {
@@ -83,14 +102,12 @@ const App: React.FC = () => {
         setUser(null);
         setIsAuthenticated(false);
         setIsLoggingOut(false);
-        setCurrentView(AppView.DASHBOARD); // Reset view
-    }, 2000); // 2 seconds delay for goodbye screen
+        setCurrentView(AppView.DASHBOARD);
+    }, 2000);
   };
 
   const handleCreateChannel = (e: React.FormEvent) => {
     e.preventDefault();
-    // Limite removido para permitir acesso aos recursos principais na versão free
-    
     const newChannel: Channel = {
         id: `c-${Date.now()}`,
         name: newChannelName.toLowerCase().replace(/\s+/g, '-'),
@@ -126,33 +143,47 @@ const App: React.FC = () => {
     setChannels(updatedChannels);
     StorageService.logAction('SEND_MESSAGE', `Mensagem enviada para ${channelId}`, user.id);
 
-    // Simulação de Resposta Automática + Notificação (Para testar o recurso)
-    // Em um app real, isso viria de um WebSocket
-    setTimeout(() => {
-        const replyMessage: Message = {
-            id: Date.now().toString(),
-            senderId: 'bot-system', // ID fictício
-            content: `Resposta automática: Recebemos "${content}".`,
-            timestamp: new Date(),
-        };
+    // --- Smart Bot Response Logic ---
+    const lowerContent = content.toLowerCase();
+    const isBotTrigger = lowerContent.includes('bot') || lowerContent.includes('ajuda') || lowerContent.includes('status') || lowerContent.includes('nexus');
+    
+    if (isBotTrigger) {
+        setTimeout(() => {
+            let botResponseText = "Estou ouvindo! Como posso ajudar?";
+            if (lowerContent.includes('ajuda')) {
+                botResponseText = "Comandos disponíveis:\n- 'Status': Ver resumo do pipeline\n- 'CRM': Ir para vendas\n- 'Bot': Chamar atenção";
+            } else if (lowerContent.includes('status') || lowerContent.includes('resumo')) {
+                const totalDeals = contacts.length;
+                const totalValue = contacts.reduce((acc, c) => acc + c.value, 0);
+                botResponseText = `📊 **Status Atual:**\n- Temos ${totalDeals} deals ativos.\n- Valor total em pipeline: R$ ${totalValue.toLocaleString('pt-BR')}.\n- Foco total em fechar!`;
+            } else if (lowerContent.includes('oi') || lowerContent.includes('olá')) {
+                botResponseText = `Olá, ${user.name}! Tudo pronto para vender hoje?`;
+            }
 
-        setChannels(prevChannels => {
-            const newChs = prevChannels.map(ch => {
-                 if (ch.id === channelId) {
-                    // Dispara notificação se habilitado e usuário não estiver focado (simulado aqui sempre)
-                    if(ch.notificationsEnabled) {
-                        sendNotification(`Nova mensagem em #${ch.name}`, replyMessage.content);
-                        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2346/2346-preview.mp3');
-                        audio.volume = 0.5;
-                        audio.play().catch(() => {}); // Ignora erro de autoplay
+            const replyMessage: Message = {
+                id: Date.now().toString(),
+                senderId: 'bot-system', 
+                content: botResponseText,
+                timestamp: new Date(),
+            };
+
+            setChannels(prevChannels => {
+                const newChs = prevChannels.map(ch => {
+                    if (ch.id === channelId) {
+                        if(ch.notificationsEnabled) {
+                            sendNotification(`Nexus Bot em #${ch.name}`, replyMessage.content);
+                            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2346/2346-preview.mp3');
+                            audio.volume = 0.5;
+                            audio.play().catch(() => {}); 
+                        }
+                        return { ...ch, messages: [...ch.messages, replyMessage] };
                     }
-                    return { ...ch, messages: [...ch.messages, replyMessage] };
-                 }
-                 return ch;
+                    return ch;
+                });
+                return newChs;
             });
-            return newChs;
-        });
-    }, 3000);
+        }, 1500);
+    }
   };
 
   const handleToggleNotifications = (channelId: string) => {
@@ -164,8 +195,6 @@ const App: React.FC = () => {
   };
 
   const handleAddContact = (newContactData: Omit<Contact, 'id' | 'lastActivity'>) => {
-    // Limite removido para permitir uso robusto do CRM no Free
-    
     const newContact: Contact = {
       ...newContactData,
       id: `ct-${Date.now()}`,
@@ -176,7 +205,33 @@ const App: React.FC = () => {
   };
 
   const handleUpdateContact = (updatedContact: Contact) => {
+    const oldContact = contacts.find(c => c.id === updatedContact.id);
+    const isDealWon = oldContact && oldContact.stage !== DealStage.WON && updatedContact.stage === DealStage.WON;
+
     setContacts(prev => prev.map(c => c.id === updatedContact.id ? updatedContact : c));
+
+    if (isDealWon && channels.length > 0) {
+        const announcementChannelId = channels[0].id;
+        const valueFormatted = updatedContact.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        
+        const announcementMsg: Message = {
+            id: Date.now().toString(),
+            senderId: 'bot-system',
+            content: `🎉 **PARABÉNS EQUIPE!** 🎉\n\nO contrato com **${updatedContact.company}** foi fechado!\nValor: **${valueFormatted}**\nResponsável: ${user?.name}`,
+            timestamp: new Date()
+        };
+
+        setChannels(prev => prev.map(ch => {
+            if (ch.id === announcementChannelId) {
+                 const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
+                 audio.volume = 0.6;
+                 audio.play().catch(() => {});
+                 sendNotification("Novo Contrato Fechado!", `Valor: ${valueFormatted}`);
+                 return { ...ch, messages: [...ch.messages, announcementMsg] };
+            }
+            return ch;
+        }));
+    }
   };
 
   const handleUpdateUser = (updatedUser: User) => {
@@ -185,7 +240,6 @@ const App: React.FC = () => {
 
   if (loading) return <div className="h-screen w-screen flex items-center justify-center bg-slate-900 text-white">Carregando...</div>;
 
-  // Goodbye Screen
   if (isLoggingOut) {
     return (
         <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-900 text-white animate-fade-in">
@@ -202,6 +256,8 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen w-screen bg-slate-900">
+      {showOnboarding && <OnboardingModal onFinish={handleFinishOnboarding} userName={user.name} />}
+      
       <Sidebar 
         currentView={currentView}
         onChangeView={setCurrentView}

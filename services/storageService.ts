@@ -1,12 +1,13 @@
-import { AuditLog, Channel, Contact, User } from '../types';
+import { AuditLog, Channel, Contact, User, BotConfig } from '../types';
 
 const STORAGE_KEYS = {
-  CURRENT_USER: 'nexus_current_user', // Sessão ativa
-  USERS_DB: 'nexus_users_db', // Simulação de banco de dados
+  CURRENT_USER: 'nexus_current_user',
+  USERS_DB: 'nexus_users_db',
   CHANNELS: 'nexus_channels',
   CONTACTS: 'nexus_contacts',
   AUDIT: 'nexus_audit_logs',
-  API_KEY: 'nexus_api_key'
+  API_KEY: 'nexus_api_key',
+  BOT_CONFIG: 'nexus_bot_config' // Nova chave
 };
 
 const dateReviver = (key: string, value: any) => {
@@ -67,7 +68,6 @@ export const StorageService = {
   // --- Premium Activation ---
   
   validateActivationCode: (code: string): boolean => {
-    // Simulação de códigos válidos gerados pelo Adm
     const validCodes = ['NEXUS-PRO-2025', 'VIP-CLIENT-X', 'ADMIN-UNLOCK'];
     return validCodes.includes(code.toUpperCase());
   },
@@ -88,6 +88,13 @@ export const StorageService = {
 
   saveApiKey: (key: string) => localStorage.setItem(STORAGE_KEYS.API_KEY, key),
   getApiKey: (): string | null => localStorage.getItem(STORAGE_KEYS.API_KEY),
+
+  // --- Bot Config ---
+  saveBotConfig: (config: BotConfig) => localStorage.setItem(STORAGE_KEYS.BOT_CONFIG, JSON.stringify(config)),
+  getBotConfig: (): BotConfig | null => {
+      const data = localStorage.getItem(STORAGE_KEYS.BOT_CONFIG);
+      return data ? JSON.parse(data) : null;
+  },
 
   logAction: (action: string, details: string, userId: string) => {
     const newLog: AuditLog = {
